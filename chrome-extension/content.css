@@ -1,0 +1,256 @@
+/* Auto-floating "Read Aloud" button on text selection */
+.voxread-select-btn {
+  all: initial !important;
+  position: fixed !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  background: linear-gradient(135deg, #a855f7, #3b82f6) !important;
+  color: #ffffff !important;
+  font-family: system-ui, -apple-system, 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  cursor: pointer !important;
+  z-index: 2147483647 !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+  animation: voxreadFadeIn 0.15s ease-out !important;
+}
+
+.voxread-select-btn.voxread-hidden {
+  display: none !important;
+}
+
+.voxread-select-btn:hover {
+  transform: translateY(-1px) scale(1.04) !important;
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.voxread-select-btn svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  color: #ffffff !important;
+}
+
+.voxread-select-btn span {
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+@keyframes voxreadFadeIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* VoxRead AI Floating Widget styles */
+.voxread-widget {
+  all: initial; /* Reset all styles */
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  background: rgba(15, 10, 30, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(168, 85, 247, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(168, 85, 247, 0.1) !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  color: #f3f4f6 !important;
+  padding: 16px !important;
+  z-index: 9999999999 !important;
+  box-sizing: border-box !important;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voxread-widget * {
+  box-sizing: border-box !important;
+  font-family: inherit !important;
+  color: inherit !important;
+}
+
+.voxread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.voxread-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #a855f7, #3b82f6) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.voxread-close-btn {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #9ca3af !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  padding: 4px !important;
+  border-radius: 4px !important;
+  transition: color 0.2s, background-color 0.2s !important;
+}
+
+.voxread-close-btn:hover {
+  color: #f3f4f6 !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.voxread-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Captions / Visualizer View */
+.voxread-captions {
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  min-height: 60px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #d1d5db !important;
+  max-height: 100px !important;
+  overflow-y: auto !important;
+}
+
+.voxread-sentence-active {
+  color: #ffffff !important;
+}
+
+.voxread-word-active {
+  background: rgba(168, 85, 247, 0.4) !important;
+  border-bottom: 2px solid #a855f7 !important;
+  border-radius: 3px !important;
+  padding: 0 2px !important;
+  font-weight: 600 !important;
+}
+
+/* Controls Grid */
+.voxread-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.voxread-control-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: #d1d5db !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+}
+
+.voxread-control-btn:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.2) !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+  color: #fff !important;
+  transform: scale(1.05) !important;
+}
+
+.voxread-control-btn:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}
+
+.voxread-control-btn.btn-play-pause {
+  background: linear-gradient(135deg, #a855f7, #3b82f6) !important;
+  border: none !important;
+  width: 44px !important;
+  height: 44px !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3) !important;
+}
+
+.voxread-control-btn.btn-play-pause:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.5) !important;
+}
+
+/* Speed / Settings Controls */
+.voxread-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px !important;
+  color: #9ca3af !important;
+}
+
+.voxread-select {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: #f3f4f6 !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  max-width: 140px !important;
+  outline: none !important;
+}
+
+.voxread-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.voxread-slider {
+  -webkit-appearance: none !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  height: 4px !important;
+  border-radius: 2px !important;
+  flex: 1 !important;
+  outline: none !important;
+}
+
+.voxread-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #a855f7 !important;
+  cursor: pointer !important;
+}
+
+.voxread-progress-bar {
+  background: rgba(255, 255, 255, 0.1) !important;
+  height: 4px !important;
+  border-radius: 2px !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.voxread-progress-fill {
+  background: linear-gradient(90deg, #a855f7, #3b82f6) !important;
+  height: 100% !important;
+  width: 0%;
+  transition: width 0.3s ease !important;
+}
