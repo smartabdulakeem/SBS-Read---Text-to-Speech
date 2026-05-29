@@ -12,11 +12,13 @@ on:
 jobs:
   build-windows:
     name: Build Windows EXE
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          path: D:\a\repo
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,11 +26,11 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: web-app
+        working-directory: D:\a\repo\web-app
         run: npm install
 
       - name: Build Web & Package Electron
-        working-directory: web-app
+        working-directory: D:\a\repo\web-app
         run: npm run electron:build
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -38,8 +40,8 @@ jobs:
         with:
           name: VoxRead-Windows-EXE
           path: |
-            web-app/dist-electron/*.exe
-            web-app/dist-electron/win-unpacked/
+            D:\a\repo\web-app\dist-electron\*.exe
+            D:\a\repo\web-app\dist-electron\win-unpacked\
 
   build-android:
     name: Build Android APK
@@ -54,6 +56,9 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
