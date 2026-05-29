@@ -12,13 +12,11 @@ on:
 jobs:
   build-windows:
     name: Build Windows EXE
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          path: repo
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,11 +24,11 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: repo/web-app
+        working-directory: web-app
         run: npm install
 
       - name: Build Web & Package Electron
-        working-directory: repo/web-app
+        working-directory: web-app
         run: npm run electron:build
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -40,8 +38,8 @@ jobs:
         with:
           name: VoxRead-Windows-EXE
           path: |
-            repo/web-app/dist-electron/*.exe
-            repo/web-app/dist-electron/win-unpacked/
+            web-app/dist-electron/*.exe
+            web-app/dist-electron/win-unpacked/
 
   build-android:
     name: Build Android APK
@@ -50,8 +48,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          path: repo
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -65,27 +61,27 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: repo/web-app
+        working-directory: web-app
         run: npm install
 
       - name: Build React App
-        working-directory: repo/web-app
+        working-directory: web-app
         run: npm run build
 
       - name: Sync Capacitor to Android
-        working-directory: repo/web-app
+        working-directory: web-app
         run: npx cap sync android
 
       - name: Grant Execute Permission to Gradle
-        working-directory: repo/web-app/android
+        working-directory: web-app/android
         run: chmod +x gradlew
 
       - name: Build Android APK
-        working-directory: repo/web-app/android
+        working-directory: web-app/android
         run: ./gradlew assembleDebug
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: VoxRead-Android-APK
-          path: repo/web-app/android/app/build/outputs/apk/debug/app-debug.apk
+          path: web-app/android/app/build/outputs/apk/debug/app-debug.apk

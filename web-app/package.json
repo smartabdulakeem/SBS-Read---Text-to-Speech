@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron .",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
