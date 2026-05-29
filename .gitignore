@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+web-app/node_modules/
+
+# Production/Distribution builds
+web-app/dist/
+web-app/dist-electron/
+web-app/dist_electron/
+web-app/out/
+
+# Android build outputs
+web-app/android/app/build/
+web-app/android/.gradle/
+web-app/android/local.properties
+
+# Logs and system files
+*.log
+.DS_Store
+Thumbs.db

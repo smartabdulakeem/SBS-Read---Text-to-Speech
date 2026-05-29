@@ -1,0 +1,88 @@
+name: Build APK and EXE
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        working-directory: web-app
+        run: npm install
+
+      - name: Build Web & Package Electron
+        working-directory: web-app
+        run: npm run electron:build
+        env:
+          # bypasses code signing prompts on windows
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Windows Executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoxRead-Windows-EXE
+          path: |
+            web-app/dist-electron/*.exe
+            web-app/dist-electron/win-unpacked/
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        working-directory: web-app
+        run: npm install
+
+      - name: Build React App
+        working-directory: web-app
+        run: npm run build
+
+      - name: Sync Capacitor to Android
+        working-directory: web-app
+        run: npx cap sync android
+
+      - name: Grant Execute Permission to Gradle
+        working-directory: web-app/android
+        run: chmod +x gradlew
+
+      - name: Build Android APK
+        working-directory: web-app/android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoxRead-Android-APK
+          path: web-app/android/app/build/outputs/apk/debug/app-debug.apk
