@@ -64,7 +64,9 @@ export function useTTS() {
     if (IS_NATIVE) {
       try {
         const result = await TextToSpeech.getSupportedVoices();
-        const list = result?.voices || [];
+        // Tag each voice with its ORIGINAL index — the plugin's speak({voice})
+        // expects the index from this unsorted order, but we sort for display.
+        const list = (result?.voices || []).map((v, i) => ({ ...v, _idx: i }));
         if (list.length > 0) {
           applyVoices(list);
         } else if (attempt < 8) {
@@ -134,6 +136,8 @@ export function useTTS() {
   const nativeVoiceIndex = () => {
     const v = voiceRef.current;
     if (!v) return -1;
+    // Use the original index captured at load time (display list is sorted).
+    if (typeof v._idx === 'number') return v._idx;
     return voicesRef.current.findIndex(x =>
       (x.voiceURI && v.voiceURI && x.voiceURI === v.voiceURI) || x.name === v.name
     );

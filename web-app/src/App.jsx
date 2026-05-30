@@ -55,6 +55,15 @@ export default function App() {
   // Auto-scroll: keep the sentence being read centered in the playback viewer.
   const readerContainerRef = useRef(null);
   const activeSentenceRef = useRef(null);
+  const playerSectionRef = useRef(null);
+
+  // When playback starts, jump to the reading panel so the highlighted text is
+  // front-and-center (input/settings scroll out of view above it).
+  useEffect(() => {
+    if (isPlaying && playerSectionRef.current) {
+      playerSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isPlaying]);
   useEffect(() => {
     const container = readerContainerRef.current;
     const el = activeSentenceRef.current;
@@ -560,14 +569,14 @@ export default function App() {
                 </label>
                 <select
                   className="w-full glass-input bg-zinc-900 border-white/10"
-                  value={selectedVoice ? selectedVoice.name : ''}
+                  value={selectedVoice ? voices.indexOf(selectedVoice) : ''}
                   onChange={(e) => {
-                    const voice = voices.find(v => v.name === e.target.value);
+                    const voice = voices[parseInt(e.target.value, 10)];
                     if (voice) setSelectedVoice(voice);
                   }}
                 >
                   {filteredVoices.map((voice, i) => (
-                    <option key={voice.voiceURI || voice.name} value={voice.name}>
+                    <option key={voice.voiceURI || `${voice.name}-${i}`} value={voices.indexOf(voice)}>
                       {getLanguageName(normLang(voice.lang))} — Voice {i + 1}
                       {voice.localService ? '' : ' (Online)'}
                     </option>
@@ -617,7 +626,7 @@ export default function App() {
         </section>
 
         {/* Right Column: Audio Player & Highlight Visualizer */}
-        <section className="lg:col-span-5 glass-panel p-5 sm:p-6 space-y-6 lg:sticky lg:top-8">
+        <section ref={playerSectionRef} className="lg:col-span-5 glass-panel p-5 sm:p-6 space-y-6 lg:sticky lg:top-8 scroll-mt-4">
           <div className="flex items-center justify-between border-b border-white/5 pb-3">
             <h3 className="text-base font-bold text-gray-200 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-purple-400" />
