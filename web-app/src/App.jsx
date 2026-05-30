@@ -3,7 +3,7 @@ import {
   Play, Pause, Square, SkipForward, SkipBack, Upload,
   Trash2, Volume2, Globe, FileText, Sparkles, Copy,
   BookOpen, Clock, Settings, RefreshCw, Languages, ArrowRight,
-  Download
+  Download, ChevronDown
 } from 'lucide-react';
 
 // MP3 export hits the Vercel serverless TTS function. On the web it's same-origin;
@@ -46,6 +46,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false); // collapsed on mobile by default
   const [history, setHistory] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedLangFilter, setSelectedLangFilter] = useState('All');
@@ -58,9 +59,13 @@ export default function App() {
     const container = readerContainerRef.current;
     const el = activeSentenceRef.current;
     if (!container || !el || currentSentenceIndex < 0) return;
-    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
-    container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-  }, [currentSentenceIndex]);
+    // Bounding-rect math is robust regardless of the element's offsetParent, so
+    // the currently-spoken sentence is reliably centered in the viewer.
+    const cRect = container.getBoundingClientRect();
+    const eRect = el.getBoundingClientRect();
+    const delta = (eRect.top - cRect.top) - container.clientHeight / 2 + eRect.height / 2;
+    container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' });
+  }, [currentSentenceIndex, currentWordRange]);
 
   // Load history from localStorage
   useEffect(() => {
@@ -248,22 +253,40 @@ export default function App() {
     start(text);
   };
 
-  // Filter voices by selected language
-  const availableLanguages = Array.from(new Set(voices.map(v => v.lang.split('-')[0]))).sort();
-  
-  const filteredVoices = voices.filter(v => {
-    if (selectedLangFilter === 'All') return true;
-    return v.lang.startsWith(selectedLangFilter);
-  });
+  // Platform locale tags vary: Android uses underscores (e.g. "en_GB"), Web uses
+  // hyphens ("en-GB"). Normalize to BCP-47 so Intl.DisplayNames works.
+  const normLang = (l) => (l || '').replace(/_/g, '-');
 
-  const getLanguageName = (langCode) => {
+  const getLanguageName = (tag) => {
+    const norm = normLang(tag);
+    const uiLang = (typeof navigator !== 'undefined' && navigator.language) || 'en';
     try {
-      const displayName = new Intl.DisplayNames([navigator.language], { type: 'language' });
-      return displayName.of(langCode.split('-')[0]);
+      const dn = new Intl.DisplayNames([uiLang], { type: 'language' });
+      const full = dn.of(norm);
+      if (full && full.toLowerCase() !== norm.toLowerCase()) return full;
+    } catch (e) { /* fall through */ }
+    try {
+      const [lng, region] = norm.split('-');
+      const langDN = new Intl.DisplayNames([uiLang], { type: 'language' });
+      const name = langDN.of(lng) || lng;
+      if (region) {
+        const regDN = new Intl.DisplayNames([uiLang], { type: 'region' });
+        const rname = regDN.of(region.toUpperCase());
+        return rname ? `${name} (${rname})` : name;
+      }
+      return name;
     } catch (e) {
-      return langCode;
+      return norm;
     }
   };
+
+  // Group voices by full locale tag, sorted by their readable language name.
+  const availableLanguages = Array.from(new Set(voices.map(v => normLang(v.lang))))
+    .sort((a, b) => getLanguageName(a).localeCompare(getLanguageName(b)));
+
+  const filteredVoices = voices.filter(v =>
+    selectedLangFilter === 'All' ? true : normLang(v.lang) === selectedLangFilter
+  );
 
   // Word-by-word active sentence layout renderer
   const renderSentenceText = (sentenceText, isCurrent, wordRange) => {
@@ -469,10 +492,19 @@ export default function App() {
 
           {/* Voice configuration panel */}
           <div className="glass-panel p-5 sm:p-6 space-y-5">
-            <h3 className="text-base font-bold text-gray-200 flex items-center gap-2 border-b border-white/5 pb-3">
-              <Settings className="w-5 h-5 text-purple-400" />
-              Voice Customization
-            </h3>
+            <button
+              type="button"
+              onClick={() => setVoiceOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-2 border-b border-white/5 pb-3 lg:cursor-default"
+            >
+              <span className="text-base font-bold text-gray-200 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-purple-400" />
+                Voice Customization
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-gray-400 transition-transform lg:hidden ${voiceOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
 
             {/* TTS playback error */}
             {ttsError && (
@@ -498,6 +530,7 @@ export default function App() {
               </div>
             )}
 
+            <div className={`${voiceOpen ? 'block' : 'hidden'} lg:block space-y-5`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Language filter */}
               <div className="space-y-1.5">
@@ -510,10 +543,10 @@ export default function App() {
                   value={selectedLangFilter}
                   onChange={(e) => setSelectedLangFilter(e.target.value)}
                 >
-                  <option value="All">All Languages ({voices.length})</option>
-                  {availableLanguages.map(lang => (
-                    <option key={lang} value={lang}>
-                      {getLanguageName(lang)} ({lang.toUpperCase()})
+                  <option value="All">All languages ({voices.length} voices)</option>
+                  {availableLanguages.map(tag => (
+                    <option key={tag} value={tag}>
+                      {getLanguageName(tag)}
                     </option>
                   ))}
                 </select>
@@ -533,9 +566,10 @@ export default function App() {
                     if (voice) setSelectedVoice(voice);
                   }}
                 >
-                  {filteredVoices.map(voice => (
-                    <option key={voice.name} value={voice.name}>
-                      {voice.name} {voice.localService ? '(Local)' : ''}
+                  {filteredVoices.map((voice, i) => (
+                    <option key={voice.voiceURI || voice.name} value={voice.name}>
+                      {getLanguageName(normLang(voice.lang))} — Voice {i + 1}
+                      {voice.localService ? '' : ' (Online)'}
                     </option>
                   ))}
                 </select>
@@ -577,6 +611,7 @@ export default function App() {
                   onChange={(e) => setPitch(parseFloat(e.target.value))}
                 />
               </div>
+            </div>
             </div>
           </div>
         </section>

@@ -1,8 +1,12 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// Bundle the worker that ships with this exact pdfjs-dist version, so the API and
+// worker versions can never drift (the old hardcoded CDN 3.4.120 worker did not
+// match the installed 5.x API). Vite resolves this to a local, hashed asset URL,
+// which also works offline under Electron (file://) and Capacitor.
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import mammoth from 'mammoth';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export async function extractTextFromFile(file) {
   const extension = file.name.split('.').pop().toLowerCase();
