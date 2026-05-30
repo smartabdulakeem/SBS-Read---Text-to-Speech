@@ -19,11 +19,10 @@
   --glow-shadow-lg: 0 0 50px rgba(168, 85, 247, 0.4);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* NOTE: do not add an unlayered `* { margin:0; padding:0 }` reset here.
+   Tailwind v4 keeps its utilities inside @layer, and unlayered rules win over
+   layered ones — such a reset silently kills every p-*, m-*, gap-*, space-y-*.
+   Tailwind's Preflight already normalizes box-sizing and margins. */
 
 body {
   font-family: var(--font-sans);
