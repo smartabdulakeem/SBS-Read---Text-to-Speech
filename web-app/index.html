@@ -11,12 +11,13 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      // Don't register a new service worker. We ship a self-unregistering sw.js
+      // so any previously-installed (broken, cache-first) worker updates to it,
+      // clears its caches, and unregisters — recovering existing clients.
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered successfully!', reg.scope))
-            .catch(err => console.log('Service Worker registration failed:', err));
-        });
+        navigator.serviceWorker.getRegistrations()
+          .then((regs) => regs.forEach((r) => r.update()))
+          .catch(() => {});
       }
     </script>
   </body>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, SkipForward, SkipBack, Upload, 
   Trash2, Volume2, Globe, FileText, Sparkles, Copy, 
@@ -41,6 +41,17 @@ export default function App() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedLangFilter, setSelectedLangFilter] = useState('All');
   const [activeTab, setActiveTab] = useState('read'); // 'read' or 'history'
+
+  // Auto-scroll: keep the sentence being read centered in the playback viewer.
+  const readerContainerRef = useRef(null);
+  const activeSentenceRef = useRef(null);
+  useEffect(() => {
+    const container = readerContainerRef.current;
+    const el = activeSentenceRef.current;
+    if (!container || !el || currentSentenceIndex < 0) return;
+    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }, [currentSentenceIndex]);
 
   // Load history from localStorage
   useEffect(() => {
@@ -613,7 +624,7 @@ export default function App() {
               <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-normal lowercase">Click sentence to jump</span>
             </h4>
             
-            <div className="h-64 border border-white/5 bg-black/30 rounded-2xl p-4 overflow-y-auto reader-container">
+            <div ref={readerContainerRef} className="h-64 border border-white/5 bg-black/30 rounded-2xl p-4 overflow-y-auto reader-container">
               {sentences.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-gray-500 text-sm font-medium text-center">
                   Playback text viewer is empty.<br/>Load some text to see highlights.
@@ -625,6 +636,7 @@ export default function App() {
                     return (
                       <span
                         key={idx}
+                        ref={isCurrent ? activeSentenceRef : null}
                         onClick={() => jumpToSentence(idx)}
                         className={`inline-block cursor-pointer transition-colors leading-relaxed text-sm ${
                           isCurrent 
