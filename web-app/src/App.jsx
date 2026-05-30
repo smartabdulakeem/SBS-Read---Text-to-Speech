@@ -311,7 +311,7 @@ export default function App() {
       </header>
 
       {/* Main Grid Layout */}
-      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1">
+      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1 pb-28 lg:pb-0">
         {/* Left Column: Input and Settings */}
         <section className="lg:col-span-7 space-y-6">
           {/* Navigation Tabs */}
@@ -593,8 +593,8 @@ export default function App() {
             )}
           </div>
 
-          {/* Player controls */}
-          <div className="flex flex-col items-center justify-center p-6 glass-card rounded-2xl gap-5">
+          {/* Player controls (desktop; mobile uses the sticky bottom bar) */}
+          <div className="hidden lg:flex flex-col items-center justify-center p-6 glass-card rounded-2xl gap-5">
             {/* Pulsing state visualizer */}
             <div className="flex justify-center items-center gap-1.5 h-12 w-full max-w-[200px]">
               {[...Array(9)].map((_, i) => (
@@ -724,6 +724,68 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      {/* Mobile sticky player bar — controls are always reachable on phones */}
+      {sentences.length > 0 && (
+        <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden">
+          <div className="mx-3 mb-3 glass-panel rounded-2xl px-4 pt-2.5 pb-3 shadow-2xl shadow-black/50">
+            <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden mb-2.5">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-blue-500 h-full transition-all duration-300"
+                style={{ width: `${((currentSentenceIndex + 1) / sentences.length) * 100}%` }}
+              ></div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-gray-400 w-10 shrink-0">
+                {currentSentenceIndex + 1}/{sentences.length}
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={skipBackward}
+                  disabled={!isPlaying || currentSentenceIndex <= 0}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 active:bg-white/10 disabled:opacity-30"
+                  title="Previous sentence"
+                >
+                  <SkipBack className="w-5 h-5" />
+                </button>
+                {isPlaying && !isPaused ? (
+                  <button
+                    onClick={pause}
+                    className="w-12 h-12 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white"
+                    title="Pause"
+                  >
+                    <Pause className="w-6 h-6 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={isPaused ? resume : handleStartRead}
+                    className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30"
+                    title="Play"
+                  >
+                    <Play className="w-6 h-6 fill-current" />
+                  </button>
+                )}
+                <button
+                  onClick={skipForward}
+                  disabled={!isPlaying || currentSentenceIndex >= sentences.length - 1}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 active:bg-white/10 disabled:opacity-30"
+                  title="Next sentence"
+                >
+                  <SkipForward className="w-5 h-5" />
+                </button>
+              </div>
+              <button
+                onClick={stop}
+                disabled={!isPlaying}
+                className="w-10 shrink-0 flex items-center justify-end text-gray-400 active:text-red-400 disabled:opacity-30"
+                title="Stop"
+              >
+                <Square className="w-5 h-5 fill-current" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
