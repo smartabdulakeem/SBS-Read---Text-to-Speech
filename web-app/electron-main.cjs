@@ -119,7 +119,7 @@ app.on('ready', () => {
   ipcMain.handle('read-selection', () => readSelectionAloud());
 
   // Piper neural TTS generation handler
-  ipcMain.handle('piper-synthesize', async (event, text, rate) => {
+  ipcMain.handle('piper-synthesize', async (event, text, rate, modelName) => {
     if (activePiperProcess) {
       try {
         activePiperProcess.kill();
@@ -132,8 +132,12 @@ app.on('ready', () => {
         const tempWav = path.join(app.getPath('temp'), `voxread_${Date.now()}.wav`);
         const lengthScale = 1.0 / (rate || 1.0);
 
+        const selectedModel = modelName || 'en_US-amy-medium.onnx';
+        const targetModelPath = path.join(piperDir, selectedModel);
+        const activeModelPath = fs.existsSync(targetModelPath) ? targetModelPath : piperModel;
+
         const args = [
-          '--model', piperModel,
+          '--model', activeModelPath,
           '--output_file', tempWav,
           '--length_scale', lengthScale.toFixed(2)
         ];

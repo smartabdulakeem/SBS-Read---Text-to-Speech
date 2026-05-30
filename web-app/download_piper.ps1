@@ -29,6 +29,18 @@ curl.exe -L -o "$dest\en_US-amy-medium.onnx" "https://huggingface.co/rhasspy/pip
 Write-Host "Downloading en_US-amy-medium.onnx.json using curl..."
 curl.exe -L -o "$dest\en_US-amy-medium.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/amy/medium/en_US-amy-medium.onnx.json"
 
+Write-Host "Downloading en_US-ryan-medium.onnx using curl..."
+curl.exe -L -o "$dest\en_US-ryan-medium.onnx" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/medium/en_US-ryan-medium.onnx"
+
+Write-Host "Downloading en_US-ryan-medium.onnx.json using curl..."
+curl.exe -L -o "$dest\en_US-ryan-medium.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json"
+
+Write-Host "Downloading en_US-lessac-medium.onnx using curl..."
+curl.exe -L -o "$dest\en_US-lessac-medium.onnx" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+
+Write-Host "Downloading en_US-lessac-medium.onnx.json using curl..."
+curl.exe -L -o "$dest\en_US-lessac-medium.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+
 Write-Host "Cleaning up temp zip/extract..."
 Remove-Item -Path $tempZip -Force
 if (Test-Path $tempExt) {

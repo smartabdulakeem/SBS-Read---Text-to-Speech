@@ -63,14 +63,31 @@ export function useTTS() {
     });
 
     if (window.voxreadDesktop?.isDesktop) {
-      const PIPER_VOICE = {
-        name: 'Piper Amy (Neural Local)',
-        lang: 'en-US',
-        voiceURI: 'piper-neural-amy',
-        default: true,
-        isPiper: true
-      };
-      sorted = [PIPER_VOICE, ...sorted];
+      const PIPER_VOICES = [
+        {
+          name: 'Piper Amy (Neural Female)',
+          lang: 'en-US',
+          voiceURI: 'piper-neural-amy',
+          modelName: 'en_US-amy-medium.onnx',
+          default: true,
+          isPiper: true
+        },
+        {
+          name: 'Piper Ryan (Neural Male 1)',
+          lang: 'en-US',
+          voiceURI: 'piper-neural-ryan',
+          modelName: 'en_US-ryan-medium.onnx',
+          isPiper: true
+        },
+        {
+          name: 'Piper Lessac (Neural Male 2)',
+          lang: 'en-US',
+          voiceURI: 'piper-neural-lessac',
+          modelName: 'en_US-lessac-medium.onnx',
+          isPiper: true
+        }
+      ];
+      sorted = [...PIPER_VOICES, ...sorted];
     }
 
     setVoices(sorted);
@@ -330,7 +347,8 @@ export function useTTS() {
       try {
         const wavUrl = await window.voxreadDesktop.synthesizeSpeech(
           sentencesRef.current[i],
-          rateRef.current
+          rateRef.current,
+          voiceRef.current?.modelName
         );
 
         if (playTokenRef.current !== myToken) return;

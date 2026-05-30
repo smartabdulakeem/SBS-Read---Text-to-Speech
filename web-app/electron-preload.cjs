@@ -9,6 +9,6 @@ ipcRenderer.on('speak-text', (_event, text) => {
 // Small marker so the web app can tell it's running inside the desktop shell.
 contextBridge.exposeInMainWorld('voxreadDesktop', {
   isDesktop: true,
-  synthesizeSpeech: (text, speed) => ipcRenderer.invoke('piper-synthesize', text, speed),
+  synthesizeSpeech: (text, speed, modelName) => ipcRenderer.invoke('piper-synthesize', text, speed, modelName),
   stopSpeech: () => ipcRenderer.invoke('piper-stop')
 });
