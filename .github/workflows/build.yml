@@ -27,6 +27,10 @@ jobs:
         working-directory: web-app
         run: npm install
 
+      - name: Download Piper Engine & Models
+        working-directory: web-app
+        run: powershell -ExecutionPolicy Bypass -File download_piper.ps1
+
       - name: Build Web & Package Electron
         working-directory: web-app
         run: npm run electron:build

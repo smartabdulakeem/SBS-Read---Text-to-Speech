@@ -38,6 +38,7 @@ export function useTTS() {
   const voicesRef = useRef([]);
   // Increments on every start/stop/jump/pause so stale native speak-loops self-cancel.
   const playTokenRef = useRef(0);
+  const audioRef = useRef(null);
 
   // Keep refs in sync for the event handlers to read the freshest state
   useEffect(() => { rateRef.current = rate; }, [rate]);
@@ -53,13 +54,25 @@ export function useTTS() {
   }, [selectedVoice]);
 
   const applyVoices = useCallback((availableVoices) => {
-    const sorted = [...availableVoices].sort((a, b) => {
+    let sorted = [...availableVoices].sort((a, b) => {
       const langA = (a.lang || '').toLowerCase();
       const langB = (b.lang || '').toLowerCase();
       if (langA < langB) return -1;
       if (langA > langB) return 1;
       return 0;
     });
+
+    if (window.voxreadDesktop?.isDesktop) {
+      const PIPER_VOICE = {
+        name: 'Piper Amy (Neural Local)',
+        lang: 'en-US',
+        voiceURI: 'piper-neural-amy',
+        default: true,
+        isPiper: true
+      };
+      sorted = [PIPER_VOICE, ...sorted];
+    }
+
     setVoices(sorted);
     voicesRef.current = sorted;
 
@@ -130,8 +143,17 @@ export function useTTS() {
       if (IS_NATIVE) {
         TextToSpeech.stop().catch(() => {});
         if (rangeHandlePromise) rangeHandlePromise.then(h => h && h.remove()).catch(() => {});
-      } else if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      } else {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        if (window.voxreadDesktop) {
+          window.voxreadDesktop.stopSpeech().catch(() => {});
+        }
       }
     };
   }, [loadVoices]);
@@ -178,6 +200,14 @@ export function useTTS() {
     playTokenRef.current += 1; // cancel any running native loop
     if (IS_NATIVE) {
       TextToSpeech.stop().catch(() => {});
+    } else if (voiceRef.current?.isPiper) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (window.voxreadDesktop) {
+        window.voxreadDesktop.stopSpeech().catch(() => {});
+      }
     } else if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -280,6 +310,65 @@ export function useTTS() {
     window.speechSynthesis.speak(utterance);
   }, [stop]);
 
+  // -------- Piper Neural Playback loop --------
+  const runPiper = useCallback(async (startIndex) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (window.voxreadDesktop) {
+      await window.voxreadDesktop.stopSpeech().catch(() => {});
+    }
+    const myToken = ++playTokenRef.current;
+
+    for (let i = startIndex; i < sentencesRef.current.length; i++) {
+      if (playTokenRef.current !== myToken) return;
+      setCurrentSentenceIndex(i);
+      sentenceIndexRef.current = i;
+      setCurrentWordRange({ start: -1, end: -1 });
+
+      try {
+        const wavUrl = await window.voxreadDesktop.synthesizeSpeech(
+          sentencesRef.current[i],
+          rateRef.current
+        );
+
+        if (playTokenRef.current !== myToken) return;
+
+        await new Promise((resolve, reject) => {
+          const audio = new Audio(wavUrl);
+          audioRef.current = audio;
+
+          audio.onended = () => {
+            audioRef.current = null;
+            resolve();
+          };
+
+          audio.onerror = (e) => {
+            audioRef.current = null;
+            reject(e);
+          };
+
+          if (isPausedRef.current) {
+            audio.pause();
+          } else {
+            audio.play().catch(reject);
+          }
+        });
+      } catch (e) {
+        if (playTokenRef.current !== myToken) return;
+        console.error('Piper playback error:', e);
+        setTtsError('Piper playback failed. Ensure Piper is fully installed.');
+        resetPlaybackState();
+        return;
+      }
+    }
+
+    if (playTokenRef.current === myToken) {
+      resetPlaybackState();
+    }
+  }, [resetPlaybackState]);
+
   // -------- Public API (platform-agnostic) --------
   const start = useCallback((text) => {
     if (!text) return;
@@ -297,10 +386,12 @@ export function useTTS() {
 
     if (IS_NATIVE) {
       runNative(0);
+    } else if (voiceRef.current?.isPiper) {
+      runPiper(0);
     } else if (window.speechSynthesis) {
       speakSentence(0);
     }
-  }, [stop, runNative, speakSentence]);
+  }, [stop, runNative, runPiper, speakSentence]);
 
   const pause = useCallback(() => {
     if (!isPlaying) return;
@@ -309,6 +400,12 @@ export function useTTS() {
       TextToSpeech.stop().catch(() => {});
       isPausedRef.current = true;
       setIsPaused(true);
+    } else if (voiceRef.current?.isPiper) {
+      isPausedRef.current = true;
+      setIsPaused(true);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
     } else if (window.speechSynthesis) {
       window.speechSynthesis.pause();
       setIsPaused(true);
@@ -322,11 +419,22 @@ export function useTTS() {
       setIsPaused(false);
       // Native engine can't resume mid-sentence; restart from the current sentence.
       runNative(Math.max(0, sentenceIndexRef.current));
+    } else if (voiceRef.current?.isPiper) {
+      isPausedRef.current = false;
+      setIsPaused(false);
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => {
+          console.error('Resume play failed, restarting sentence:', e);
+          runPiper(sentenceIndexRef.current);
+        });
+      } else {
+        runPiper(sentenceIndexRef.current);
+      }
     } else if (window.speechSynthesis) {
       window.speechSynthesis.resume();
       setIsPaused(false);
     }
-  }, [isPaused, runNative]);
+  }, [isPaused, runNative, runPiper]);
 
   const jumpToSentence = useCallback((index) => {
     if (index < 0 || index >= sentencesRef.current.length) return;
@@ -338,10 +446,12 @@ export function useTTS() {
     isPausedRef.current = false;
     if (IS_NATIVE) {
       runNative(index);
+    } else if (voiceRef.current?.isPiper) {
+      runPiper(index);
     } else {
       speakSentence(index);
     }
-  }, [runNative, speakSentence]);
+  }, [runNative, runPiper, speakSentence]);
 
   const skipForward = useCallback(() => {
     const nextIndex = sentenceIndexRef.current + 1;
