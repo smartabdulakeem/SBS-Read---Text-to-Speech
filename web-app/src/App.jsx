@@ -28,7 +28,10 @@ export default function App() {
     resume,
     jumpToSentence,
     skipForward,
-    skipBackward
+    skipBackward,
+    ttsError,
+    openVoiceInstall,
+    isNative
   } = useTTS();
 
   const [text, setText] = useState('');
@@ -390,6 +393,30 @@ export default function App() {
               <Settings className="w-5 h-5 text-purple-400" />
               Voice Customization
             </h3>
+
+            {/* TTS playback error */}
+            {ttsError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm font-medium">
+                {ttsError}
+              </div>
+            )}
+
+            {/* No voices installed on this Android device */}
+            {isNative && voices.length === 0 && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
+                <p className="text-amber-300 text-sm font-medium">
+                  No speech voices were found on this device. Install the text-to-speech voice
+                  data, then reopen the app.
+                </p>
+                <button
+                  onClick={openVoiceInstall}
+                  className="btn-primary w-full justify-center py-2.5 text-sm"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  Install voice data
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Language filter */}

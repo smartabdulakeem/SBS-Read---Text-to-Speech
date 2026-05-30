@@ -18,6 +18,7 @@ export function useTTS() {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
   const [currentWordRange, setCurrentWordRange] = useState({ start: -1, end: -1 });
   const [sentences, setSentences] = useState([]);
+  const [ttsError, setTtsError] = useState(null);
 
   const utteranceRef = useRef(null);
   const sentencesRef = useRef([]);
@@ -57,13 +58,29 @@ export function useTTS() {
   }, []);
 
   // -------- Voice loading --------
-  const loadVoices = useCallback(async () => {
+  // On Android the TTS engine may not be initialized the instant the app mounts,
+  // so getSupportedVoices() can briefly return []. Retry a few times before giving up.
+  const loadVoices = useCallback(async (attempt = 0) => {
     if (IS_NATIVE) {
       try {
         const result = await TextToSpeech.getSupportedVoices();
-        applyVoices(result?.voices || []);
+        const list = result?.voices || [];
+        if (list.length > 0) {
+          applyVoices(list);
+        } else if (attempt < 8) {
+          setTimeout(() => loadVoices(attempt + 1), 700);
+        } else {
+          // Engine reachable but no installed voice data on this device.
+          setVoices([]);
+          voicesRef.current = [];
+        }
       } catch (e) {
         console.error('Failed to load native voices:', e);
+        if (attempt < 8) {
+          setTimeout(() => loadVoices(attempt + 1), 700);
+        } else {
+          setTtsError('Could not reach the device text-to-speech engine.');
+        }
       }
       return;
     }
@@ -73,7 +90,15 @@ export function useTTS() {
 
   useEffect(() => {
     loadVoices();
-    if (!IS_NATIVE && typeof window !== 'undefined' && window.speechSynthesis) {
+    let rangeHandlePromise;
+    if (IS_NATIVE) {
+      // Word-range highlighting on Android (plugin emits charIndex offsets per utterance).
+      rangeHandlePromise = TextToSpeech.addListener('onRangeStart', (info) => {
+        if (info && typeof info.start === 'number' && typeof info.end === 'number') {
+          setCurrentWordRange({ start: info.start, end: info.end });
+        }
+      });
+    } else if (typeof window !== 'undefined' && window.speechSynthesis) {
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         window.speechSynthesis.onvoiceschanged = loadVoices;
       }
@@ -81,11 +106,22 @@ export function useTTS() {
     return () => {
       if (IS_NATIVE) {
         TextToSpeech.stop().catch(() => {});
+        if (rangeHandlePromise) rangeHandlePromise.then(h => h && h.remove()).catch(() => {});
       } else if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
     };
   }, [loadVoices]);
+
+  // Opens the Android dialog to install missing TTS voice data.
+  const openVoiceInstall = useCallback(async () => {
+    if (!IS_NATIVE) return;
+    try {
+      await TextToSpeech.openInstall();
+    } catch (e) {
+      console.error('openInstall failed:', e);
+    }
+  }, []);
 
   // Split text into clean sentences (shared by both engines)
   const splitTextIntoSentences = (text) => {
@@ -144,12 +180,17 @@ export function useTTS() {
           lang: voiceRef.current?.lang || 'en-US',
           rate: rateRef.current,
           pitch: pitchRef.current,
-          volume: 1.0,
+          // Omit `voice` so the system default is used when none is selected.
           ...(idx >= 0 ? { voice: idx } : {}),
         });
       } catch (e) {
-        // speak() rejects when interrupted by stop(); bail if we were cancelled
+        // speak() rejects when interrupted by stop()/jump — that's expected, just bail.
         if (playTokenRef.current !== myToken) return;
+        // Otherwise it's a genuine failure (e.g. no installed voice data).
+        console.error('Native speak error:', e);
+        setTtsError('Playback failed — your device may have no TTS voice installed. Tap "Install voice data" below.');
+        resetPlaybackState();
+        return;
       }
     }
 
@@ -217,6 +258,7 @@ export function useTTS() {
   // -------- Public API (platform-agnostic) --------
   const start = useCallback((text) => {
     if (!text) return;
+    setTtsError(null);
     stop();
     const split = splitTextIntoSentences(text);
     setSentences(split);
@@ -305,6 +347,9 @@ export function useTTS() {
     resume,
     jumpToSentence,
     skipForward,
-    skipBackward
+    skipBackward,
+    ttsError,
+    openVoiceInstall,
+    isNative: IS_NATIVE
   };
 }
