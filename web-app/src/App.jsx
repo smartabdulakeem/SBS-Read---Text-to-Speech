@@ -13,6 +13,7 @@ const TTS_API_BASE =
     ? ''
     : 'https://sbs-read-text-to-speech.vercel.app';
 import { useTTS } from './hooks/useTTS';
+import { useScreenReader } from './hooks/useScreenReader';
 import { extractTextFromFile } from './utils/fileParser';
 import HistoryList from './components/HistoryList';
 
@@ -41,6 +42,25 @@ export default function App() {
     openVoiceInstall,
     isNative
   } = useTTS();
+
+  // Android Select-to-Speak ("read on screen") controls
+  const {
+    overlayGranted,
+    accessibilityEnabled,
+    bubbleOn,
+    busy: screenReaderBusy,
+    requestOverlay,
+    openAccessibility,
+    startBubble,
+    stopBubble,
+    saveTtsPrefs,
+  } = useScreenReader();
+
+  // Keep the on-screen reader's native TTS in sync with the in-app voice settings.
+  useEffect(() => {
+    if (!isNative) return;
+    saveTtsPrefs({ rate, pitch, lang: (selectedVoice && selectedVoice.lang) || '' });
+  }, [isNative, rate, pitch, selectedVoice, saveTtsPrefs]);
 
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -623,6 +643,52 @@ export default function App() {
             </div>
             </div>
           </div>
+
+          {/* Read on screen — Android Select-to-Speak */}
+          {isNative && (
+            <div className="glass-panel p-5 sm:p-6 space-y-4">
+              <h3 className="text-base font-bold text-gray-200 flex items-center gap-2 border-b border-white/5 pb-3">
+                <Volume2 className="w-5 h-5 text-purple-400" />
+                Read on screen
+                <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-normal">beta</span>
+              </h3>
+              <p className="text-sm text-gray-400">
+                Read text from <span className="text-gray-200 font-medium">any app</span>: grant the two
+                permissions, turn on the floating button, then tap it and tap the text you want read aloud.
+              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 p-3 bg-black/20 rounded-lg">
+                  <span className="text-sm text-gray-300">1. Display over other apps</span>
+                  {overlayGranted ? (
+                    <span className="text-xs font-semibold text-emerald-400">Granted ✓</span>
+                  ) : (
+                    <button onClick={requestOverlay} className="btn-secondary py-1.5 px-3 text-xs">Grant</button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3 bg-black/20 rounded-lg">
+                  <span className="text-sm text-gray-300">2. Accessibility (VoxRead)</span>
+                  {accessibilityEnabled ? (
+                    <span className="text-xs font-semibold text-emerald-400">Enabled ✓</span>
+                  ) : (
+                    <button onClick={openAccessibility} className="btn-secondary py-1.5 px-3 text-xs">Enable</button>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => (bubbleOn ? stopBubble() : startBubble())}
+                disabled={screenReaderBusy || !overlayGranted || !accessibilityEnabled}
+                className="btn-primary w-full justify-center py-2.5 text-sm disabled:opacity-40"
+              >
+                <Volume2 className="w-4 h-4" />
+                {bubbleOn ? 'Turn off floating button' : 'Turn on floating button'}
+              </button>
+              {(!overlayGranted || !accessibilityEnabled) && (
+                <p className="text-xs text-gray-500">Grant both permissions above to enable the floating button.</p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Right Column: Audio Player & Highlight Visualizer */}

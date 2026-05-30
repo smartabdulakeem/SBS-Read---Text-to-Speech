@@ -4,4 +4,5 @@
     <string name="title_activity_main">VoxRead AI</string>
     <string name="package_name">com.voxread.ai</string>
     <string name="custom_url_scheme">com.voxread.ai</string>
+    <string name="accessibility_description">VoxRead reads on-screen text aloud. When you enable this, VoxRead can read the text you tap on in any app (Select to Speak). VoxRead does not collect or share your screen contents.</string>
 </resources>
