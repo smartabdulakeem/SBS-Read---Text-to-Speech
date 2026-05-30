@@ -150,6 +150,20 @@ export default function App() {
     };
   }, [start, history]); // depends on start and history since it calls saveToHistory which references history
 
+  // Desktop (.exe): global hotkey copies the selection in any app and asks us to read it.
+  useEffect(() => {
+    const handleDesktopSpeak = (event) => {
+      const sharedText = event.detail;
+      if (sharedText && sharedText.trim()) {
+        setText(sharedText);
+        saveToHistory(sharedText, 'From selection');
+        start(sharedText);
+      }
+    };
+    window.addEventListener('voxreadSpeak', handleDesktopSpeak);
+    return () => window.removeEventListener('voxreadSpeak', handleDesktopSpeak);
+  }, [start, history]);
+
   const handleSelectHistoryItem = (item) => {
     setText(item.text);
     setActiveTab('read');
