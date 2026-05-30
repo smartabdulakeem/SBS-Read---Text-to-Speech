@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Pause, Square, SkipForward, SkipBack, Upload, 
-  Trash2, Volume2, Globe, FileText, Sparkles, Copy, 
-  BookOpen, Clock, Settings, RefreshCw, Languages, ArrowRight
+  Play, Pause, Square, SkipForward, SkipBack, Upload,
+  Trash2, Volume2, Globe, FileText, Sparkles, Copy,
+  BookOpen, Clock, Settings, RefreshCw, Languages, ArrowRight,
+  Download
 } from 'lucide-react';
+
+// MP3 export hits the Vercel serverless TTS function. On the web it's same-origin;
+// the packaged .exe (file://) and Android (capacitor://) must call the public URL.
+const TTS_API_BASE =
+  typeof location !== 'undefined' && location.protocol.startsWith('http')
+    ? ''
+    : 'https://sbs-read-text-to-speech.vercel.app';
 import { useTTS } from './hooks/useTTS';
 import { extractTextFromFile } from './utils/fileParser';
 import HistoryList from './components/HistoryList';
@@ -37,6 +45,7 @@ export default function App() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const [history, setHistory] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedLangFilter, setSelectedLangFilter] = useState('All');
@@ -184,6 +193,48 @@ export default function App() {
     setText('');
     stop();
     setError(null);
+  };
+
+  // Download the current text as an MP3 (Google Cloud TTS via the /api/tts proxy)
+  const handleDownloadMp3 = async () => {
+    if (!text.trim()) {
+      setError('Please enter or upload some text before downloading audio.');
+      return;
+    }
+    setError(null);
+    setDownloading(true);
+    try {
+      const res = await fetch(`${TTS_API_BASE}/api/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          languageCode: (selectedVoice && selectedVoice.lang) || 'en-US',
+          // Map the app's slider ranges to Google's: rate 0.25–4, pitch -20–20.
+          speakingRate: Math.min(4, Math.max(0.25, rate)),
+          pitch: Math.min(20, Math.max(-20, (pitch - 1) * 20)),
+        }),
+      });
+      if (!res.ok) {
+        let msg = `Request failed (${res.status})`;
+        try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const base = (text.split('\n')[0].slice(0, 40).trim() || 'voxread').replace(/[^\w\- ]/g, '');
+      a.download = `${base || 'voxread'}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(`MP3 download failed: ${e.message}. (Make sure the Google TTS key is set on the server.)`);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // Start reading current text
@@ -379,6 +430,24 @@ export default function App() {
                     <>
                       <Play className="w-5 h-5 fill-current" />
                       Load & Read Aloud
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownloadMp3}
+                  disabled={downloading || loading}
+                  className="btn-secondary justify-center py-3 text-base whitespace-nowrap"
+                  title="Generate and download an MP3 of this text"
+                >
+                  {downloading ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      MP3
                     </>
                   )}
                 </button>
