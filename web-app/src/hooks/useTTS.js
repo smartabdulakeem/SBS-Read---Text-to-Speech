@@ -8,11 +8,18 @@ import { TextToSpeech } from '@capacitor-community/text-to-speech';
 // which gives us word-level boundary highlighting + native pause/resume.
 const IS_NATIVE = Capacitor.isNativePlatform();
 
+// --- persisted settings (localStorage) ---
+const voiceKey = (v) => (v ? `${v.voiceURI || v.name}|${v.lang}` : '');
+const readNum = (k, d) => {
+  try { const n = parseFloat(localStorage.getItem(k)); return Number.isFinite(n) ? n : d; }
+  catch { return d; }
+};
+
 export function useTTS() {
   const [voices, setVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(null);
-  const [rate, setRate] = useState(1);
-  const [pitch, setPitch] = useState(1);
+  const [rate, setRate] = useState(() => readNum('voxread_rate', 1));
+  const [pitch, setPitch] = useState(() => readNum('voxread_pitch', 1));
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
@@ -38,6 +45,13 @@ export function useTTS() {
   useEffect(() => { voiceRef.current = selectedVoice; }, [selectedVoice]);
   useEffect(() => { voicesRef.current = voices; }, [voices]);
 
+  // Persist voice/rate/pitch so they survive restarts.
+  useEffect(() => { try { localStorage.setItem('voxread_rate', String(rate)); } catch { /* ignore */ } }, [rate]);
+  useEffect(() => { try { localStorage.setItem('voxread_pitch', String(pitch)); } catch { /* ignore */ } }, [pitch]);
+  useEffect(() => {
+    if (selectedVoice) { try { localStorage.setItem('voxread_voice', voiceKey(selectedVoice)); } catch { /* ignore */ } }
+  }, [selectedVoice]);
+
   const applyVoices = useCallback((availableVoices) => {
     const sorted = [...availableVoices].sort((a, b) => {
       const langA = (a.lang || '').toLowerCase();
@@ -50,10 +64,17 @@ export function useTTS() {
     voicesRef.current = sorted;
 
     if (sorted.length > 0 && !voiceRef.current) {
-      const defaultVoice = sorted.find(v => v.default) ||
-                           sorted.find(v => (v.lang || '').startsWith('en')) ||
-                           sorted[0];
-      setSelectedVoice(defaultVoice);
+      let chosen = null;
+      try {
+        const savedKey = localStorage.getItem('voxread_voice');
+        if (savedKey) chosen = sorted.find(v => voiceKey(v) === savedKey);
+      } catch { /* ignore */ }
+      if (!chosen) {
+        chosen = sorted.find(v => v.default) ||
+                 sorted.find(v => (v.lang || '').startsWith('en')) ||
+                 sorted[0];
+      }
+      setSelectedVoice(chosen);
     }
   }, []);
 
