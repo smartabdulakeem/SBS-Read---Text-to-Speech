@@ -71,16 +71,39 @@ function showMainWindow() {
 // from a global shortcut), then return the clipboard text.
 function copySelection() {
   return new Promise((resolve) => {
-    const ps =
-      'powershell -NoProfile -WindowStyle Hidden -Command ' +
-      '"Add-Type -AssemblyName System.Windows.Forms; ' +
-      "[System.Windows.Forms.SendKeys]::SendWait('^c')\"";
-    exec(ps, () => setTimeout(resolve, 220));
+    const tempVbs = path.join(app.getPath('temp'), 'voxread_copy.vbs');
+    if (!fs.existsSync(tempVbs)) {
+      try {
+        fs.writeFileSync(tempVbs, 'Set WshShell = CreateObject("WScript.Shell")\nWshShell.SendKeys "^c"\n', 'utf-8');
+      } catch (err) {
+        // Fallback to powershell if writing fails
+        const ps =
+          'powershell -NoProfile -WindowStyle Hidden -Command ' +
+          '"Add-Type -AssemblyName System.Windows.Forms; ' +
+          "[System.Windows.Forms.SendKeys]::SendWait('^c')\"";
+        exec(ps, () => setTimeout(resolve, 300));
+        return;
+      }
+    }
+    // Execute VBScript using wscript.exe (starts instantly)
+    exec(`wscript.exe //B "${tempVbs}"`, (err) => {
+      if (err) {
+        // Fallback to powershell if execution fails
+        const ps =
+          'powershell -NoProfile -WindowStyle Hidden -Command ' +
+          '"Add-Type -AssemblyName System.Windows.Forms; ' +
+          "[System.Windows.Forms.SendKeys]::SendWait('^c')\"";
+        exec(ps, () => setTimeout(resolve, 300));
+      } else {
+        setTimeout(resolve, 150);
+      }
+    });
   });
 }
 
 async function readSelectionAloud() {
   const before = clipboard.readText();
+  clipboard.clear(); // Clear so we know if a new copy succeeds
   await copySelection();
   const text = clipboard.readText();
   if (text && text.trim() && text !== ' ') {
@@ -91,9 +114,12 @@ async function readSelectionAloud() {
         mainWindow.webContents.send('speak-text', text);
       }
     }, 150);
+  } else {
+    // If nothing was copied, restore previous clipboard contents
+    if (before) {
+      clipboard.writeText(before);
+    }
   }
-  // If nothing was selected the clipboard is unchanged; we simply do nothing.
-  void before;
 }
 
 function createTray() {
