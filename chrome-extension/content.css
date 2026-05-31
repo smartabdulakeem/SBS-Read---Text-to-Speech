@@ -1,7 +1,7 @@
 /* Auto-floating "Read Aloud" button on text selection */
 .voxread-select-btn {
-  all: initial !important;
-  position: fixed !important;
+  all: initial; /* Reset all styles (WITHOUT !important so JS inline styles can override top/left) */
+  position: absolute !important; /* Use absolute to scroll with content and prevent transform context issues */
   display: flex !important;
   align-items: center !important;
   gap: 6px !important;
@@ -21,6 +21,7 @@
   -webkit-user-select: none !important;
   transition: transform 0.12s ease, box-shadow 0.12s ease !important;
   animation: voxreadFadeIn 0.15s ease-out !important;
+  box-sizing: border-box !important;
 }
 
 .voxread-select-btn.voxread-hidden {
@@ -52,11 +53,11 @@
 
 /* VoxRead AI Floating Widget styles */
 .voxread-widget {
-  all: initial; /* Reset all styles */
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 360px;
+  all: initial !important; /* Reset all styles */
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  width: 360px !important;
   background: rgba(15, 10, 30, 0.9) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
@@ -69,9 +70,9 @@
   z-index: 9999999999 !important;
   box-sizing: border-box !important;
   transition: opacity 0.3s ease, transform 0.3s ease !important;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
 }
 
 .voxread-widget * {

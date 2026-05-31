@@ -51,45 +51,98 @@ function ensureSelectionButton() {
   return btn;
 }
 
-function showSelectionButton() {
+// Helper to get text selection details, including Shadow DOM support
+function getSelectionDetails() {
   const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-    hideSelectionButton();
-    return;
+  if (!sel || sel.isCollapsed) return null;
+
+  let text = sel.toString().trim();
+  if (text.length < 2) return null;
+
+  let rect = null;
+
+  // 1. Try modern getComposedRanges first to traverse shadow DOM
+  if (typeof sel.getComposedRanges === 'function') {
+    try {
+      const ranges = sel.getComposedRanges();
+      if (ranges && ranges.length > 0) {
+        rect = ranges[0].getBoundingClientRect();
+      }
+    } catch (e) {
+      // ignore errors from getComposedRanges
+    }
   }
-  const text = sel.toString().trim();
-  if (text.length < 2) {
+
+  // 2. Fallback to standard getRangeAt if range is valid and not empty
+  if ((!rect || (rect.width === 0 && rect.height === 0)) && sel.rangeCount > 0) {
+    try {
+      const range = sel.getRangeAt(0);
+      rect = range.getBoundingClientRect();
+    } catch (e) {
+      // ignore range errors
+    }
+  }
+
+  // 3. Fallback to activeElement shadow root selection if activeElement is nested inside shadow DOM
+  if (!rect || (rect.width === 0 && rect.height === 0)) {
+    try {
+      let activeEl = document.activeElement;
+      while (activeEl && activeEl.shadowRoot) {
+        const shadowSel = activeEl.shadowRoot.getSelection ? activeEl.shadowRoot.getSelection() : null;
+        if (shadowSel && !shadowSel.isCollapsed) {
+          text = shadowSel.toString().trim();
+          if (shadowSel.rangeCount > 0) {
+            rect = shadowSel.getRangeAt(0).getBoundingClientRect();
+          }
+          break;
+        }
+        activeEl = activeEl.shadowRoot.activeElement;
+      }
+    } catch (e) {
+      // ignore shadow DOM errors
+    }
+  }
+
+  if (!rect || (rect.width === 0 && rect.height === 0)) return null;
+
+  return { text, rect };
+}
+
+function showSelectionButton() {
+  const details = getSelectionDetails();
+  if (!details) {
     hideSelectionButton();
     return;
   }
 
-  const rect = sel.getRangeAt(0).getBoundingClientRect();
-  if (rect.width === 0 && rect.height === 0) {
-    hideSelectionButton();
-    return;
-  }
+  const { text, rect } = details;
 
   const btn = ensureSelectionButton();
   btn.classList.remove('voxread-hidden');
 
-  // Position just above the selection, centered
   const btnWidth = 112;
   const btnHeight = 32;
-  let top = rect.top - btnHeight - 8;
-  let left = rect.left + (rect.width / 2) - (btnWidth / 2);
+
+  // Calculate document-relative coordinates
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+
+  let top = rect.top + scrollY - btnHeight - 8;
+  let left = rect.left + scrollX + (rect.width / 2) - (btnWidth / 2);
 
   // If too close to top of viewport, place below selection instead
   if (rect.top < btnHeight + 12) {
-    top = rect.bottom + 8;
+    top = rect.bottom + scrollY + 8;
   }
 
-  // Clamp horizontally inside viewport
-  const maxLeft = document.documentElement.clientWidth - btnWidth - 8;
-  if (left < 8) left = 8;
+  // Clamp horizontally inside viewport width
+  const maxLeft = scrollX + document.documentElement.clientWidth - btnWidth - 8;
+  const minLeft = scrollX + 8;
+  if (left < minLeft) left = minLeft;
   if (left > maxLeft) left = maxLeft;
 
-  btn.style.top = top + 'px';
-  btn.style.left = left + 'px';
+  btn.style.setProperty('top', top + 'px', 'important');
+  btn.style.setProperty('left', left + 'px', 'important');
 }
 
 function hideSelectionButton() {
@@ -103,13 +156,12 @@ document.addEventListener('keyup', (e) => {
   if (e.shiftKey || e.key === 'Shift') setTimeout(showSelectionButton, 10);
 }, true);
 
-// Hide on outside click / scroll / new selection start
+// Hide on outside click / new selection start
 document.addEventListener('mousedown', (e) => {
   if (voxreadSelectionBtn && e.target !== voxreadSelectionBtn && !voxreadSelectionBtn.contains(e.target)) {
     hideSelectionButton();
   }
 }, true);
-window.addEventListener('scroll', hideSelectionButton, true);
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -302,10 +354,10 @@ function setupDraggableWidget(widget) {
     
     document.onmousemove = (e) => {
       if (!isDragging) return;
-      widget.style.bottom = 'auto';
-      widget.style.right = 'auto';
-      widget.style.left = (e.clientX - offsetX) + 'px';
-      widget.style.top = (e.clientY - offsetY) + 'px';
+      widget.style.setProperty('bottom', 'auto', 'important');
+      widget.style.setProperty('right', 'auto', 'important');
+      widget.style.setProperty('left', (e.clientX - offsetX) + 'px', 'important');
+      widget.style.setProperty('top', (e.clientY - offsetY) + 'px', 'important');
     };
 
     document.onmouseup = () => {
