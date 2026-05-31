@@ -102,13 +102,27 @@ function copySelection() {
 }
 
 async function readSelectionAloud() {
+  // 1. Wait 150ms to allow physical modifier keys (Ctrl+Shift+R) to release
+  await new Promise((resolve) => setTimeout(resolve, 150));
+
   const before = clipboard.readText();
-  clipboard.clear(); // Clear so we know if a new copy succeeds
+  const marker = `VOXREAD_EMPTY_${Date.now()}_${Math.random()}`;
+
+  try {
+    clipboard.writeText(marker);
+    // Give the OS clipboard a brief moment to update
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } catch (err) {
+    console.error('Failed to write clipboard empty marker:', err);
+  }
+
   await copySelection();
+
   const text = clipboard.readText();
-  if (text && text.trim() && text !== ' ') {
+
+  if (text && text !== marker && text.trim() && text !== ' ') {
     showMainWindow();
-    // give the window a tick to be ready before sending
+    // Give the window a tick to be ready before sending
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('speak-text', text);
@@ -116,8 +130,14 @@ async function readSelectionAloud() {
     }, 150);
   } else {
     // If nothing was copied, restore previous clipboard contents
-    if (before) {
-      clipboard.writeText(before);
+    try {
+      if (before) {
+        clipboard.writeText(before);
+      } else {
+        clipboard.clear();
+      }
+    } catch (err) {
+      console.error('Failed to restore clipboard:', err);
     }
   }
 }

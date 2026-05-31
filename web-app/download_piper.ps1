@@ -47,4 +47,27 @@ if (Test-Path $tempExt) {
     Remove-Item -Path $tempExt -Recurse -Force
 }
 
+Write-Host "Stripping unused Piper files to reduce size..."
+$tashkeel = Join-Path $dest "libtashkeel_model.ort"
+if (Test-Path $tashkeel) {
+    Write-Host "Removing libtashkeel_model.ort..."
+    Remove-Item -Path $tashkeel -Force
+}
+
+$espeakVoices = Join-Path $dest "espeak-ng-data\voices"
+if (Test-Path $espeakVoices) {
+    Write-Host "Removing espeak-ng-data/voices..."
+    Remove-Item -Path $espeakVoices -Recurse -Force
+}
+
+$espeakData = Join-Path $dest "espeak-ng-data"
+if (Test-Path $espeakData) {
+    Write-Host "Removing non-English dictionaries..."
+    Get-ChildItem -Path $espeakData -File | Where-Object {
+        $_.Name -notlike "*en_dict*" -and
+        $_.Name -notlike "phon*" -and
+        $_.Name -ne "intonations"
+    } | Remove-Item -Force
+}
+
 Write-Host "Done!"

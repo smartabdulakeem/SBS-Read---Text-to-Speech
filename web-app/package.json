@@ -50,6 +50,7 @@
   "build": {
     "appId": "com.voxread.ai",
     "productName": "VoxRead AI",
+    "compression": "maximum",
     "directories": {
       "output": "dist-electron"
     },
