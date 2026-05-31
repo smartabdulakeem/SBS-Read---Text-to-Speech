@@ -71,7 +71,20 @@ export default function App() {
   const [voiceOpen, setVoiceOpen] = useState(false); // collapsed on mobile by default
   const [history, setHistory] = useState([]);
   const [dragActive, setDragActive] = useState(false);
-  const [selectedLangFilter, setSelectedLangFilter] = useState('All');
+  const [selectedLangFilter, setSelectedLangFilter] = useState(() => {
+    try {
+      return localStorage.getItem('voxread_lang_filter') || 'All';
+    } catch {
+      return 'All';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('voxread_lang_filter', selectedLangFilter);
+    } catch { /* ignore */ }
+  }, [selectedLangFilter]);
+
   const [activeTab, setActiveTab] = useState('read'); // 'read' or 'history'
 
   // Auto-scroll: keep the sentence being read centered in the playback viewer.

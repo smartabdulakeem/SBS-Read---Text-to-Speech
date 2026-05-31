@@ -260,9 +260,13 @@ function createWidget() {
   document.getElementById('voxread-next').onclick = playNextSentence;
   
   const speedSlider = document.getElementById('voxread-speed');
+  speedSlider.value = ttsState.rate;
+  document.getElementById('voxread-speed-label').innerText = `${ttsState.rate}x`;
+  
   speedSlider.oninput = (e) => {
     ttsState.rate = parseFloat(e.target.value);
     document.getElementById('voxread-speed-label').innerText = `${ttsState.rate}x`;
+    saveExtensionSettings();
     // If speaking, adjust dynamically by restarting current sentence
     if (ttsState.isPlaying && !ttsState.isPaused) {
       speakSentence(ttsState.currentSentenceIdx);
@@ -272,6 +276,7 @@ function createWidget() {
   const voiceSelect = document.getElementById('voxread-voice-select');
   voiceSelect.onchange = (e) => {
     ttsState.selectedVoice = ttsState.voices.find(v => v.name === e.target.value);
+    saveExtensionSettings();
     // Restart current sentence with the new voice
     if (ttsState.isPlaying && !ttsState.isPaused) {
       speakSentence(ttsState.currentSentenceIdx);
@@ -332,6 +337,18 @@ function populateVoiceDropdown() {
   });
 }
 
+function saveExtensionSettings() {
+  try {
+    chrome.storage.local.set({
+      voxread_voice: ttsState.selectedVoice ? ttsState.selectedVoice.name : null,
+      voxread_rate: ttsState.rate,
+      voxread_pitch: ttsState.pitch
+    });
+  } catch (e) {
+    /* ignore background context issues */
+  }
+}
+
 function initializeTTS(text) {
   if (!text || text.trim().length === 0) return;
   
@@ -340,16 +357,38 @@ function initializeTTS(text) {
   ttsState.currentSentenceIdx = 0;
   
   createWidget();
-  loadVoices(() => {
-    // Set a default voice if none set
-    if (!ttsState.selectedVoice && ttsState.voices.length > 0) {
-      ttsState.selectedVoice = ttsState.voices.find(v => v.default) || 
-                               ttsState.voices.find(v => v.lang.startsWith(navigator.language.split('-')[0])) || 
-                               ttsState.voices[0];
+  
+  chrome.storage.local.get(['voxread_voice', 'voxread_rate', 'voxread_pitch'], (stored) => {
+    if (stored.voxread_rate !== undefined) {
+      ttsState.rate = parseFloat(stored.voxread_rate) || 1.0;
     }
-    populateVoiceDropdown();
-    updateControls();
-    startTTS();
+    if (stored.voxread_pitch !== undefined) {
+      ttsState.pitch = parseFloat(stored.voxread_pitch) || 1.0;
+    }
+    
+    // Update speed slider and label in widget if created
+    const speedSlider = document.getElementById('voxread-speed');
+    if (speedSlider) {
+      speedSlider.value = ttsState.rate;
+      const label = document.getElementById('voxread-speed-label');
+      if (label) label.innerText = `${ttsState.rate}x`;
+    }
+
+    loadVoices(() => {
+      if (stored.voxread_voice && ttsState.voices.length > 0) {
+        ttsState.selectedVoice = ttsState.voices.find(v => v.name === stored.voxread_voice);
+      }
+      
+      // Set a default voice if none set
+      if (!ttsState.selectedVoice && ttsState.voices.length > 0) {
+        ttsState.selectedVoice = ttsState.voices.find(v => v.default) || 
+                                 ttsState.voices.find(v => v.lang.startsWith(navigator.language.split('-')[0])) || 
+                                 ttsState.voices[0];
+      }
+      populateVoiceDropdown();
+      updateControls();
+      startTTS();
+    });
   });
 }
 

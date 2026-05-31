@@ -17,7 +17,7 @@ const readNum = (k, d) => {
 
 export function useTTS() {
   const [voices, setVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [selectedVoice, setSelectedVoiceState] = useState(null);
   const [rate, setRate] = useState(() => readNum('voxread_rate', 1));
   const [pitch, setPitch] = useState(() => readNum('voxread_pitch', 1));
   const [isPlaying, setIsPlaying] = useState(false);
@@ -49,9 +49,12 @@ export function useTTS() {
   // Persist voice/rate/pitch so they survive restarts.
   useEffect(() => { try { localStorage.setItem('voxread_rate', String(rate)); } catch { /* ignore */ } }, [rate]);
   useEffect(() => { try { localStorage.setItem('voxread_pitch', String(pitch)); } catch { /* ignore */ } }, [pitch]);
-  useEffect(() => {
-    if (selectedVoice) { try { localStorage.setItem('voxread_voice', voiceKey(selectedVoice)); } catch { /* ignore */ } }
-  }, [selectedVoice]);
+  const selectVoiceAndPersist = useCallback((voice) => {
+    setSelectedVoiceState(voice);
+    if (voice) {
+      try { localStorage.setItem('voxread_voice', voiceKey(voice)); } catch { /* ignore */ }
+    }
+  }, []);
 
   const applyVoices = useCallback((availableVoices) => {
     let sorted = [...availableVoices].sort((a, b) => {
@@ -93,18 +96,19 @@ export function useTTS() {
     setVoices(sorted);
     voicesRef.current = sorted;
 
-    if (sorted.length > 0 && !voiceRef.current) {
-      let chosen = null;
-      try {
-        const savedKey = localStorage.getItem('voxread_voice');
-        if (savedKey) chosen = sorted.find(v => voiceKey(v) === savedKey);
-      } catch { /* ignore */ }
-      if (!chosen) {
-        chosen = sorted.find(v => v.default) ||
-                 sorted.find(v => (v.lang || '').startsWith('en')) ||
-                 sorted[0];
-      }
-      setSelectedVoice(chosen);
+    const savedKey = localStorage.getItem('voxread_voice');
+    let chosen = null;
+    if (savedKey) {
+      chosen = sorted.find(v => voiceKey(v) === savedKey);
+    }
+
+    if (chosen) {
+      setSelectedVoiceState(chosen);
+    } else if (!voiceRef.current && sorted.length > 0) {
+      const fallback = sorted.find(v => v.default) ||
+                       sorted.find(v => (v.lang || '').startsWith('en')) ||
+                       sorted[0];
+      setSelectedVoiceState(fallback);
     }
   }, []);
 
@@ -255,6 +259,11 @@ export function useTTS() {
           // Omit `voice` so the system default is used when none is selected.
           ...(idx >= 0 ? { voice: idx } : {}),
         });
+
+        // Android speedup fix: add a small pause to allow the native audio track to finish the utterance
+        if (playTokenRef.current === myToken) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
       } catch (e) {
         // speak() rejects when interrupted by stop()/jump — that's expected, just bail.
         if (playTokenRef.current !== myToken) return;
@@ -484,7 +493,7 @@ export function useTTS() {
   return {
     voices,
     selectedVoice,
-    setSelectedVoice,
+    setSelectedVoice: selectVoiceAndPersist,
     rate,
     setRate,
     pitch,
