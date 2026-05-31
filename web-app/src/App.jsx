@@ -47,10 +47,12 @@ export default function App() {
   const {
     overlayGranted,
     accessibilityEnabled,
+    notificationsGranted,
     bubbleOn,
     busy: screenReaderBusy,
     requestOverlay,
     openAccessibility,
+    requestNotifications,
     startBubble,
     stopBubble,
     saveTtsPrefs,
@@ -688,6 +690,15 @@ export default function App() {
                     <button onClick={openAccessibility} className="btn-secondary py-1.5 px-3 text-xs">Enable</button>
                   )}
                 </div>
+                {!notificationsGranted && (
+                  <div className="flex items-center justify-between gap-3 p-3 bg-black/20 rounded-lg">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-gray-300">3. Notifications</span>
+                      <span className="text-[10px] text-gray-500">Required on Android 13+ to run service</span>
+                    </div>
+                    <button onClick={requestNotifications} className="btn-secondary py-1.5 px-3 text-xs">Grant</button>
+                  </div>
+                )}
               </div>
 
               <button

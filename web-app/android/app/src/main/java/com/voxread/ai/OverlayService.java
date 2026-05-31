@@ -33,11 +33,25 @@ public class OverlayService extends Service {
     private TtsHelper tts;
     private boolean capturing = false;
 
+    private void showToastSafe(final String message) {
+        new Handler(getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
-        wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        tts = new TtsHelper(this);
+        try {
+            wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+            tts = new TtsHelper(this);
+        } catch (Throwable t) {
+            showToastSafe("VoxRead init failed: " + t.getMessage());
+            t.printStackTrace();
+        }
     }
 
     @Override
@@ -47,31 +61,43 @@ public class OverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        startForegroundWithNotification();
-        showBubble();
+        try {
+            startForegroundWithNotification();
+            showBubble();
+        } catch (Throwable t) {
+            showToastSafe("VoxRead starting failed: " + t.getMessage());
+            t.printStackTrace();
+            stopSelf();
+        }
         return START_STICKY;
     }
 
     private void startForegroundWithNotification() {
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "VoxRead Reader", NotificationManager.IMPORTANCE_LOW);
-            nm.createNotificationChannel(ch);
-        }
-        Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? new Notification.Builder(this, CHANNEL_ID)
-                : new Notification.Builder(this);
-        Notification n = b
-                .setContentTitle("VoxRead Select-to-Speak")
-                .setContentText("Tap the bubble, then tap text to read it.")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setOngoing(true)
-                .build();
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else {
-            startForeground(1, n);
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel ch = new NotificationChannel(
+                        CHANNEL_ID, "VoxRead Reader", NotificationManager.IMPORTANCE_LOW);
+                nm.createNotificationChannel(ch);
+            }
+            Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? new Notification.Builder(this, CHANNEL_ID)
+                    : new Notification.Builder(this);
+            Notification n = b
+                    .setContentTitle("VoxRead Select-to-Speak")
+                    .setContentText("Tap the bubble, then tap text to read it.")
+                    .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+                    .setOngoing(true)
+                    .build();
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(1, n);
+            }
+        } catch (Throwable t) {
+            showToastSafe("FGS Notification failed: " + t.getMessage());
+            t.printStackTrace();
+            throw t;
         }
     }
 
@@ -132,7 +158,14 @@ public class OverlayService extends Service {
         });
 
         bubble = b;
-        wm.addView(bubble, lp);
+        try {
+            wm.addView(bubble, lp);
+        } catch (Throwable t) {
+            showToastSafe("Overlay draw failed: " + t.getMessage());
+            t.printStackTrace();
+            bubble = null;
+            throw t;
+        }
     }
 
     private void onBubbleTap() {

@@ -8,6 +8,7 @@ const IS_NATIVE = Capacitor.isNativePlatform();
 export function useScreenReader() {
   const [overlayGranted, setOverlayGranted] = useState(false);
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
+  const [notificationsGranted, setNotificationsGranted] = useState(false);
   const [bubbleOn, setBubbleOn] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -18,6 +19,12 @@ export function useScreenReader() {
       setOverlayGranted(!!o?.granted);
       const a = await ScreenReader.isAccessibilityEnabled();
       setAccessibilityEnabled(!!a?.enabled);
+      if (ScreenReader.isNotificationPermissionGranted) {
+        const n = await ScreenReader.isNotificationPermissionGranted();
+        setNotificationsGranted(!!n?.granted);
+      } else {
+        setNotificationsGranted(true);
+      }
     } catch (e) {
       /* plugin unavailable (e.g. web) */
     }
@@ -39,9 +46,26 @@ export function useScreenReader() {
     try { await ScreenReader.openAccessibilitySettings(); } catch (e) { /* ignore */ }
   }, []);
 
+  const requestNotifications = useCallback(async () => {
+    try {
+      if (ScreenReader.requestNotificationPermission) {
+        const res = await ScreenReader.requestNotificationPermission();
+        setNotificationsGranted(!!res?.granted);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, []);
+
   const startBubble = useCallback(async () => {
     setBusy(true);
     try {
+      if (IS_NATIVE && ScreenReader.requestNotificationPermission && !notificationsGranted) {
+        const res = await ScreenReader.requestNotificationPermission();
+        if (res?.granted) {
+          setNotificationsGranted(true);
+        }
+      }
       await ScreenReader.startBubble();
       setBubbleOn(true);
     } catch (e) {
@@ -49,7 +73,7 @@ export function useScreenReader() {
     } finally {
       setBusy(false);
     }
-  }, [refresh]);
+  }, [refresh, notificationsGranted]);
 
   const stopBubble = useCallback(async () => {
     setBusy(true);
@@ -69,11 +93,13 @@ export function useScreenReader() {
     isNative: IS_NATIVE,
     overlayGranted,
     accessibilityEnabled,
+    notificationsGranted,
     bubbleOn,
     busy,
     refresh,
     requestOverlay,
     openAccessibility,
+    requestNotifications,
     startBubble,
     stopBubble,
     saveTtsPrefs,

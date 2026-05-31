@@ -8,14 +8,60 @@ import android.provider.Settings;
 import android.text.TextUtils;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 /** JS bridge for the Select-to-Speak (read on screen) feature. */
-@CapacitorPlugin(name = "ScreenReader")
+@CapacitorPlugin(
+    name = "ScreenReader",
+    permissions = {
+        @Permission(
+            alias = "notifications",
+            strings = { "android.permission.POST_NOTIFICATIONS" }
+        )
+    }
+)
 public class ScreenReaderPlugin extends Plugin {
+
+    @PluginMethod
+    public void isNotificationPermissionGranted(PluginCall call) {
+        JSObject ret = new JSObject();
+        if (Build.VERSION.SDK_INT >= 33) {
+            ret.put("granted", getPermissionState("notifications") == PermissionState.GRANTED);
+        } else {
+            ret.put("granted", true);
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestNotificationPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (getPermissionState("notifications") != PermissionState.GRANTED) {
+                requestPermissionForAlias("notifications", call, "notificationsCallback");
+            } else {
+                JSObject ret = new JSObject();
+                ret.put("granted", true);
+                call.resolve(ret);
+            }
+        } else {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+        }
+    }
+
+    @PermissionCallback
+    private void notificationsCallback(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", getPermissionState("notifications") == PermissionState.GRANTED);
+        call.resolve(ret);
+    }
 
     @PluginMethod
     public void isOverlayPermissionGranted(PluginCall call) {
