@@ -241,15 +241,65 @@ function splitTextIntoSentences(text) {
   return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
 }
 
+// Helper to translate locale tags to human-readable names (Intl.DisplayNames)
+function getLanguageName(langTag) {
+  const norm = (langTag || '').replace(/_/g, '-');
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'language' });
+    const full = dn.of(norm);
+    if (full && full.toLowerCase() !== norm.toLowerCase()) return full;
+  } catch (e) { /* fall through */ }
+  try {
+    const [lng, region] = norm.split('-');
+    const langDN = new Intl.DisplayNames(['en'], { type: 'language' });
+    const name = langDN.of(lng) || lng;
+    if (region) {
+      const regDN = new Intl.DisplayNames(['en'], { type: 'region' });
+      const rname = regDN.of(region.toUpperCase());
+      return rname ? `${name} (${rname})` : name;
+    }
+    return name;
+  } catch (e) {
+    return norm;
+  }
+}
+
 // Load Web Speech API Voices
 function loadVoices(callback) {
   let voices = window.speechSynthesis.getVoices();
+
+  const handleVoices = () => {
+    ttsState.voices = window.speechSynthesis.getVoices();
+    chrome.storage.local.get(['voxread_voice'], (stored) => {
+      const savedName = ttsState.selectedVoice ? ttsState.selectedVoice.name : stored.voxread_voice;
+      if (savedName) {
+        const found = ttsState.voices.find(v => v.name === savedName);
+        if (found) ttsState.selectedVoice = found;
+      }
+      
+      // Default fallback if none is selected or found
+      if (!ttsState.selectedVoice && ttsState.voices.length > 0) {
+        ttsState.selectedVoice = ttsState.voices.find(v => v.default) || 
+                                 ttsState.voices.find(v => v.lang.startsWith(navigator.language.split('-')[0])) || 
+                                 ttsState.voices[0];
+      }
+      
+      populateVoiceDropdown();
+    });
+  };
+
+  // Keep voices updated dynamically on system changes
+  window.speechSynthesis.onvoiceschanged = () => {
+    handleVoices();
+  };
+
   if (voices.length > 0) {
     ttsState.voices = voices;
     if (callback) callback();
   } else {
+    // If voices are not ready yet, wait for onvoiceschanged before running callback
     window.speechSynthesis.onvoiceschanged = () => {
-      ttsState.voices = window.speechSynthesis.getVoices();
+      handleVoices();
       if (callback) callback();
     };
   }
@@ -375,13 +425,20 @@ function populateVoiceDropdown() {
 
   select.innerHTML = '';
   
-  // Sort voices by language
-  const sorted = [...ttsState.voices].sort((a, b) => a.lang.localeCompare(b.lang));
+  // Sort voices by their readable language name first, then by voice name
+  const sorted = [...ttsState.voices].sort((a, b) => {
+    const langA = getLanguageName(a.lang);
+    const langB = getLanguageName(b.lang);
+    const langComp = langA.localeCompare(langB);
+    if (langComp !== 0) return langComp;
+    return a.name.localeCompare(b.name);
+  });
   
   sorted.forEach(voice => {
     const opt = document.createElement('option');
     opt.value = voice.name;
-    opt.innerText = `${voice.name} (${voice.lang.split('-')[0].toUpperCase()})`;
+    // Format: "Language Name — Voice Name"
+    opt.innerText = `${getLanguageName(voice.lang)} — ${voice.name}`;
     if (ttsState.selectedVoice && voice.name === ttsState.selectedVoice.name) {
       opt.selected = true;
     }
